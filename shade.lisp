@@ -81,30 +81,6 @@
 				  ,@body))))
 
 
-#+nil
-(defparameter *vertex-shader*
-  "#version 140
-uniform mat4 fg_ProjectionMatrix;
-in vec4 fg_Color;
-in vec4 fg_Vertex;
-smooth out vec4 fg_SmoothColor;
-void main ()
-{
-  fg_SmoothColor=fg_Color;
-  gl_Position=fg_ProjectionMatrix * fg_Vertex;
-}
-")
-
-#+nil
-(defparameter *fragment-shader*
-  "#version 140
-smooth in vec4 fg_SmoothColor;
-out vec4 fg_FragColor;
-void main(void)
-{
-  fg_FragColor = fg_SmoothColor;
-}
-")
 
 (defparameter *vertex-shader*
 "void main(){
@@ -118,7 +94,8 @@ void main(void)
   "uniform sampler2D textureImage;
 void main()
 {
-	gl_FragColor = texture2D( textureImage, gl_TexCoord[0].st );
+        vec4 q=texture2D( textureImage, gl_TexCoord[0].st );
+	gl_FragColor = vec4(q.x-q.z,q.x-q.z,q.x-q.z,255); 
 }
 ")
 
