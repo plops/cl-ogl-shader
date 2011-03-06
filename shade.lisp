@@ -90,23 +90,27 @@
 }
 ")
 
-(defparameter *fragment-shader*
-  "uniform sampler2D textureImage;
+(progn
+ (defparameter *fragment-shader*
+   "uniform sampler2D textureImage;
 void main()
 {
   vec4 q=texture2D( textureImage, gl_TexCoord[0].st);
   float v=q.z;
   if(int(gl_FragCoord.x)%2 == 0)
      v=q.x; 
-  float x=5./255.;
+  float x=0; // 1./255.;
+  v-=.278431;
+  v*=1.7;
   if(v>=(1.0-x))
-     gl_FragColor = vec4(255,0,0,255);
-   else if (v<=x)
-     gl_FragColor = vec4(0,0,255,255);
-   else
-     gl_FragColor = vec4(v,v,v,255); 
+    gl_FragColor = vec4(255,0,0,255);
+  else if (v<=x)
+    gl_FragColor = vec4(0,0,255,255);
+  else
+    gl_FragColor = vec4(v,v,v,255); 
 }
 ")
+ (setf *reinitialize* t))
 
 (defmacro set-mat (m &rest rest)
   (let ((res nil)
@@ -127,8 +131,8 @@ void main()
 (video:set-controls
  '((gamma video::default)
    (saturation min)
-   (contrast .4)
-   (brightness .5)
+   (contrast max)
+   (brightness max)
    (auto-white-balance 0)
    (power-line-frequency 0)
    (white-balance-temperature min)
@@ -239,7 +243,7 @@ void main()
       ;; (enable-vertex-attrib-array vertex-index)
       (check-error "init-shader")))
   (defun init-rendering ()
-    (clear-color .1 .3 .3 1))
+    (clear-color 0 0 0 1))
   (defun load-ortho-f (m l r b tt n f)
     (declare (type (simple-array single-float (16)) m)
 	     (type single-float l r b tt n f))
@@ -321,28 +325,35 @@ void main()
 	(declare (ignore internal-format))
 	(tex-sub-image-2d target 0 0 0 w h external-format type *update-texture*))
       (setf *update-texture* nil)))
-  (defun draw ()
-    (when *reinitialize*
-      (my-init)
-      (setf *reinitialize* nil))
-    (clear :color-buffer-bit)
-  ;  (triangle)
-   #+NIL (with-primitive :line-loop
-      (vertex 0 0)
-      (vertex 1 0)
-      (vertex 0 1))
-   (update-texture)
-   (with-pushed-matrix
-     (translate 100 200 0)
-     (draw-tex))
-   (with-primitive :triangles
-     (color .3 .9 .9)
-      (vertex 10 10)
-      (color 1 1 0)
-      (vertex 100 10)
-      (color 1 0 1)
-      (vertex 10 100))
-    (check-error "draw"))
+  (let ((count 0))
+    (declare (type fixnum count))
+   (defun draw ()
+     (when *reinitialize*
+       (my-init)
+       (setf *reinitialize* nil))
+     (incf count)
+     (if (= 0 (mod count 2))
+	 (clear-color 1 1 1 1)
+	 (clear-color 0 0 0 1))
+     (clear :color-buffer-bit)
+					;  (triangle)
+     #+NIL (with-primitive :line-loop
+	     (vertex 0 0)
+	     (vertex 1 0)
+	     (vertex 0 1))
+     #+nil  (with-primitive :triangles
+	      (color 1 1 1 1)
+	      (vertex 10 10)
+	      (color 1 1 0)
+	      (vertex 700 10)
+	      (color 1 0 1)
+	      (vertex 10 200))
+     (update-texture)
+     (with-pushed-matrix
+       (translate 100 200 0)
+       (draw-tex))
+   
+     (check-error "draw")))
   (setf *reinitialize* t))
 
 #+Nil
