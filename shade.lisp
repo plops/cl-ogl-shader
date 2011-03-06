@@ -98,7 +98,7 @@ void main()
   float v=q.z;
   if(int(gl_FragCoord.x)%2 == 0)
      v=q.x; 
-  float x=3./255.;
+  float x=5./255.;
   if(v>=(1.0-x))
      gl_FragColor = vec4(255,0,0,255);
    else if (v<=x)
@@ -125,10 +125,10 @@ void main()
 
 #+nil
 (video:set-controls
- '((gamma .0)
+ '((gamma video::default)
    (saturation min)
-   (contrast max)
-   (brightness video::default)
+   (contrast .4)
+   (brightness .5)
    (auto-white-balance 0)
    (power-line-frequency 0)
    (white-balance-temperature min)
@@ -144,12 +144,13 @@ void main()
 #+nil 
 (video:uninit)
 
+(defvar *do-capture* t)
 (defun run-main-loop ()
   (unwind-protect
        (progn 
 	 (video:init)
 	 (video:start-capturing)
-	 (dotimes (i 10000)
+	 (loop while *do-capture* do
 	   (video:exchange-queue video:*fd*
 				 #'(lambda (index)
 				     (setf *update-texture* (first (elt video::*bufs* index)))
