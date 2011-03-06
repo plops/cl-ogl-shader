@@ -95,11 +95,16 @@
 void main()
 {
   vec4 q=texture2D( textureImage, gl_TexCoord[0].st);
-  if(int(gl_FragCoord.x)%2 == 0) {
-    gl_FragColor = vec4(q.x,q.x,q.x,255); 
-  } else {
-    gl_FragColor = vec4(q.z,q.z,q.z,255); 
-  }
+  float v=q.z;
+  if(int(gl_FragCoord.x)%2 == 0)
+     v=q.x; 
+  float x=3./255.;
+  if(v>=(1.0-x))
+     gl_FragColor = vec4(255,0,0,255);
+   else if (v<=x)
+     gl_FragColor = vec4(0,0,255,255);
+   else
+     gl_FragColor = vec4(v,v,v,255); 
 }
 ")
 
@@ -117,6 +122,21 @@ void main()
 (defvar *tex* nil)
 (defvar *tex-size* (list (/ 640 2) 480
 			 :texture-2d :rgba :rgba :unsigned-byte))
+
+#+nil
+(video:set-controls
+ '((gamma .0)
+   (saturation min)
+   (contrast max)
+   (brightness video::default)
+   (auto-white-balance 0)
+   (power-line-frequency 0)
+   (white-balance-temperature min)
+   (sharpness 0)
+   (backlight-compensation 0)
+   (exposure-auto 1)
+   (exposure-auto-priority 3)))
+
 #+nil
 (video:init)
 #+nil
