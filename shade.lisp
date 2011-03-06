@@ -94,8 +94,12 @@
   "uniform sampler2D textureImage;
 void main()
 {
-        vec4 q=texture2D( textureImage, gl_TexCoord[0].st );
-	gl_FragColor = vec4(q.x-q.z,q.x-q.z,q.x-q.z,255); 
+  vec4 q=texture2D( textureImage, gl_TexCoord[0].st);
+  if(int(gl_FragCoord.x)%2 == 0) {
+    gl_FragColor = vec4(q.x,q.x,q.x,255); 
+  } else {
+    gl_FragColor = vec4(q.z,q.z,q.z,255); 
+  }
 }
 ")
 
