@@ -5,7 +5,11 @@
   (require :asdf)
   (require :cl-opengl)
   (require :cl-glut)
-  (require :cl-glu))
+  (require :cl-glu)
+  (push "/home/martin/0225/grov/v4l2/" asdf:*central-registry*)
+  (require :video)
+  )
+
 
 (defpackage :run
   (:shadowing-import-from :cl close get special)
@@ -127,31 +131,70 @@ void main(void)
     `(setf ,@(reverse res))))
 
 (defvar *reinitialize* t)
+(defvar *update-texture* nil)
+(defvar *tex* nil)
+(defvar *tex-size* '(640 480 :texture-2d :rgb :rgb :unsigned-byte))
+#+nil
+(video:init)
+#+nil
+(video:set-format video:*fd*)
+#+nil 
+(video:uninit)
 
-(let* ((projection-matrix-ind 0)
-       (projection-matrix (make-array 16 :element-type 'single-float))
-       (matrices (make-array 1 :element-type '(simple-array single-float (16))
-			     :initial-contents (list projection-matrix)))
-       (color-index 0)
-       (vertex-index 0)
-       (vertex-buffer-name 0)
-       (num-color-components 3)
-       (num-vertex-components 2)
-       (stride (* 4 (+ num-color-components num-vertex-components)))
-       (array (let* ((l '(1 0 0
-			  5 5
-			  0 1 0
-			  25 5
-			  0 0 1
-			  5 25)))
-		(make-array (length l)
-			    :element-type 'single-float
-			    :initial-contents (mapcar #'float l))))
-       (varray (gl::make-gl-array :pointer (sb-sys:vector-sap array)
-				    :size (length array)
-				    :type :float))
-       (num-elements (floor (length array) stride)))
-  (defun init-buffer ()
+(defun run-main-loop ()
+  (unwind-protect
+       (progn 
+	 (video:init)
+	 (video:start-capturing)
+	 (dotimes (i 100)
+	   (video:exchange-queue video:*fd*
+				 #'(lambda (index)
+				     (setf *update-texture* (first (elt video::*bufs* index)))
+				     (sleep (/ 60))))))
+    (progn
+      (video:stop-capturing)
+      (video:uninit))))
+#+nil
+(let ((m (make-array (list 3 480 640))))
+  (dotimes (i 640)
+    (dotimes (j 480)
+      (setf 
+       (aref m 0 j i) (mod i 255)
+       (aref m 1 j i) (mod i 255)
+       (aref m 2 j i) (mod j 255))))
+  (setf *update-texture* (sb-ext:array-storage-vector m))
+  nil)
+
+#+nil
+(sb-thread:make-thread #'(lambda () (run-main-loop))
+		       :name "capture")
+
+
+(let* (;; (projection-matrix-ind 0)
+       ;; (projection-matrix (make-array 16 :element-type 'single-float))
+       ;; (matrices (make-array 1 :element-type '(simple-array single-float (16))
+       ;; 			     :initial-contents (list projection-matrix)))
+       ;; (color-index 0)
+       ;; (vertex-index 0)
+       ;; (vertex-buffer-name 0)
+       ;; (num-color-components 3)
+       ;; (num-vertex-components 2)
+       ;; (stride (* 4 (+ num-color-components num-vertex-components)))
+       ;; (array (let* ((l '(1 0 0
+       ;; 			  5 5
+       ;; 			  0 1 0
+       ;; 			  25 5
+       ;; 			  0 0 1
+       ;; 			  5 25)))
+       ;; 		(make-array (length l)
+       ;; 			    :element-type 'single-float
+       ;; 			    :initial-contents (mapcar #'float l))))
+       ;; (varray (gl::make-gl-array :pointer (sb-sys:vector-sap array)
+       ;; 				    :size (length array)
+       ;; 				    :type :float))
+       ;; (num-elements (floor (length array) stride))
+       )
+  #+nil(defun init-buffer ()
     (let ((vbn (first (gen-buffers 1))))
       (bind-buffer :array-buffer vbn)
       (buffer-data :array-buffer :static-draw varray))
@@ -190,7 +233,7 @@ void main(void)
       ;; (enable-vertex-attrib-array vertex-index)
       (check-error "init-shader")))
   (defun init-rendering ()
-    (clear-color 0 0 0 1))
+    (clear-color .1 .3 .3 1))
   (defun load-ortho-f (m l r b tt n f)
     (declare (type (simple-array single-float (16)) m)
 	     (type single-float l r b tt n f))
@@ -210,15 +253,31 @@ void main(void)
     (let ((h 300)
 	  (w 300))
      (viewport 0 0 w h)
-     ;(ortho -1 1 -1 1 -1 1)
+     (ortho -1 1 -1 1 -1 1)
      
-     (load-ortho-2df projection-matrix 0s0 30s0 0s0 (/ (* 30s0 h) w))))
+     #+nil (load-ortho-2df projection-matrix 0s0 30s0 0s0 (/ (* 30s0 h) w))))
+  (defun init-tex (&optional (w 640) (h 480))
+    (when *tex*
+      (delete-textures (list *tex*))
+      (setf *tex* nil))
+    (unless *tex*
+      (setf *tex* (first (gen-textures 1)))
+      (bind-texture :texture-2d *tex*)
+      (tex-parameter :texture-2d :texture-min-filter :linear)
+      (tex-parameter :texture-2d :texture-mag-filter :linear)
+      (destructuring-bind (ww hh target internal-format external-format type)
+	  *tex-size*
+	(declare (ignore ww hh))
+	(setf *tex-size* (list w (floor h 2) target internal-format external-format type))
+       (tex-image-2d :texture-2d 0 internal-format w (floor h 2) 0
+		     external-format type (sb-sys:int-sap 0)))))
   (defun my-init ()
     (init-view)
-    (init-buffer)
-    (init-shader)
-    (init-rendering))
-  (defun triangle ()
+    ;(init-buffer)
+    ;(init-shader)
+    (init-rendering)
+    (init-tex))
+  #+nil (defun triangle ()
     ;(uniform-matrix projection-matrix-ind 4 matrices nil)
     (bind-buffer :array-buffer vertex-buffer-name)
     (vertex-attrib-pointer color-index num-color-components
@@ -228,19 +287,50 @@ void main(void)
 						    (* 4 num-color-components)))
     (draw-arrays :triangles 0 num-elements)
     (check-error "triangle"))
+  (defun draw-tex ()
+    (when *tex*
+     (enable :texture-2d)
+     (bind-texture :texture-2d *tex*)
+     (let* ((x 0)
+	    (y 0)
+	    (w 160)
+	    (h 120)
+	    (wt 7)
+	    (ht 5.5)
+	    (q 1 #+nil (/ h w)))
+       (with-primitive :quads
+	 (color 1 1 1)
+	 (tex-coord 0 0) (vertex x y)
+	 (tex-coord wt 0) (vertex w y)
+	 (tex-coord wt ht) (vertex w (* q h))
+	 (tex-coord 0 ht) (vertex x (* q h))))
+     (disable :texture-2d)))
+  (defun update-texture ()
+    (when *update-texture*
+      (destructuring-bind (w h target internal-format external-format type) *tex-size*
+	(declare (ignore internal-format))
+	(tex-sub-image-2d target 0 0 0 w h external-format type *update-texture*))
+      (setf *update-texture* nil)))
   (defun draw ()
     (when *reinitialize*
       (my-init)
       (setf *reinitialize* nil))
     (clear :color-buffer-bit)
-    (triangle)
+  ;  (triangle)
    #+NIL (with-primitive :line-loop
       (vertex 0 0)
       (vertex 1 0)
       (vertex 0 1))
-   (with-primitive :triangle
+   (update-texture)
+   (with-pushed-matrix
+     (translate 30 30 0)
+     (draw-tex))
+   (with-primitive :triangles
+     (color .3 .9 .9)
       (vertex 10 10)
+      (color 1 1 0)
       (vertex 100 10)
+      (color 1 0 1)
       (vertex 10 100))
     (check-error "draw"))
   (setf *reinitialize* t))
