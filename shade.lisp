@@ -133,7 +133,8 @@ void main(void)
 (defvar *reinitialize* t)
 (defvar *update-texture* nil)
 (defvar *tex* nil)
-(defvar *tex-size* '(640 480 :texture-2d :luminance :luminance :unsigned-byte))
+(defvar *tex-size* (list (/ 640 2) 480
+			 :texture-2d :rgba :rgba :unsigned-byte))
 #+nil
 (video:init)
 #+nil
@@ -146,7 +147,7 @@ void main(void)
        (progn 
 	 (video:init)
 	 (video:start-capturing)
-	 (dotimes (i 100)
+	 (dotimes (i 10000)
 	   (video:exchange-queue video:*fd*
 				 #'(lambda (index)
 				     (setf *update-texture* (first (elt video::*bufs* index)))
@@ -154,14 +155,16 @@ void main(void)
     (progn
       (video:stop-capturing)
       (video:uninit))))
-#+nil
-(let ((m (make-array (list 240 640 3))))
-  (dotimes (i 640)
-    (dotimes (j 240)
-      (setf 
-       (aref m j i 0) (mod i 255)
-       (aref m j i 1) (mod j 255)
-       (aref m j i 2) (mod j 255))))
+#+nil ;; data is actually yuyv in one rgba quadrupel, so 
+(let ((m (make-array (list (second *tex-size*) (first *tex-size*) 4))))
+  (destructuring-bind (h w c) (array-dimensions m)
+   (dotimes (i w)
+     (dotimes (j h)
+       (setf 
+	(aref m j i 0) 100
+	(aref m j i 1) (mod i 255)
+	(aref m j i 2) (mod j 255)
+	(aref m j i 3) 255))))
   (setf *update-texture* (sb-ext:array-storage-vector m))
   nil)
 
@@ -251,10 +254,13 @@ void main(void)
     (load-ortho-f m l r b tt -1s0 1s0))
   (defun init-view ()
     (let ((h 800)
-	  (w 500))
+	  (w 800))
      (viewport 0 0 w h)
-    ; (ortho 0 w -1 1 -1 1)
-     
+     (matrix-mode :projection)
+     (load-identity)
+     (ortho 0 w h 0 -1 1)
+     (matrix-mode :modelview)
+     (load-identity)
      #+nil (load-ortho-2df projection-matrix 0s0 30s0 0s0 (/ (* 30s0 h) w))))
   (defun init-tex (&optional (w 640) (h 480))
     (when *tex*
@@ -267,9 +273,7 @@ void main(void)
       (tex-parameter :texture-2d :texture-mag-filter :linear)
       (destructuring-bind (ww hh target internal-format external-format type)
 	  *tex-size*
-	(declare (ignore ww hh))
-	(setf *tex-size* (list w (floor h 2) target internal-format external-format type))
-       (tex-image-2d :texture-2d 0 internal-format w (floor h 2) 0
+	(tex-image-2d :texture-2d 0 internal-format ww hh 0
 		     external-format type (if *update-texture*
 					      *update-texture*
 					      (sb-sys:int-sap 0))))))
@@ -296,7 +300,7 @@ void main(void)
      (let* ((x 0)
 	    (y 0)
 	    (w 640)
-	    (h 240)
+	    (h 480)
 	    (wt 1)
 	    (ht 1)
 	    (q 1 #+nil (/ h w)))
@@ -338,6 +342,6 @@ void main(void)
   (setf *reinitialize* t))
 
 #+Nil
-(sb-thread:make-thread #'(lambda () (with-gui (800 500)
+(sb-thread:make-thread #'(lambda () (with-gui (800 800)
 				 (draw)))
 		       :name "ogl")
