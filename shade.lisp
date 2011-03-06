@@ -115,9 +115,10 @@ void main(void)
 ")
 
 (defparameter *fragment-shader*
-  "void main()
+  "uniform sampler2D textureImage;
+void main()
 {
-	gl_FragColor = gl_Color;
+	gl_FragColor = texture2D( textureImage, gl_TexCoord[0].st );
 }
 ")
 
@@ -268,9 +269,10 @@ void main(void)
       (setf *tex* nil))
     (unless *tex*
       (setf *tex* (first (gen-textures 1)))
+      (active-texture :texture0)
       (bind-texture :texture-2d *tex*)
-      (tex-parameter :texture-2d :texture-min-filter :linear)
-      (tex-parameter :texture-2d :texture-mag-filter :linear)
+      (tex-parameter :texture-2d :texture-min-filter :nearest)
+      (tex-parameter :texture-2d :texture-mag-filter :nearest)
       (destructuring-bind (ww hh target internal-format external-format type)
 	  *tex-size*
 	(tex-image-2d :texture-2d 0 internal-format ww hh 0
@@ -280,7 +282,7 @@ void main(void)
   (defun my-init ()
     (init-view)
     ;(init-buffer)
-    ;(init-shader)
+    (init-shader)
     (init-rendering)
     (init-tex))
   #+nil (defun triangle ()
