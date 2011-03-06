@@ -214,10 +214,9 @@ void main(void)
      
      (load-ortho-2df projection-matrix 0s0 30s0 0s0 (/ (* 30s0 h) w))))
   (defun my-init ()
-    (format t "~a" (glut:get-proc-address "glGenBuffers"))
     (init-view)
     (init-buffer)
-;    (init-shader)
+    (init-shader)
     (init-rendering))
   (defun triangle ()
     ;(uniform-matrix projection-matrix-ind 4 matrices nil)
@@ -235,14 +234,14 @@ void main(void)
       (setf *reinitialize* nil))
     (clear :color-buffer-bit)
     (triangle)
-    (with-primitive :line-loop
+   #+NIL (with-primitive :line-loop
       (vertex 0 0)
       (vertex 1 0)
       (vertex 0 1))
-    (with-primitive :line-loop
-      (vertex 0 0)
-      (vertex 100 0)
-      (vertex 0 100))
+   (with-primitive :triangle
+      (vertex 10 10)
+      (vertex 100 10)
+      (vertex 10 100))
     (check-error "draw"))
   (setf *reinitialize* t))
 
